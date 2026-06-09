@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art to Voronoi Transformer</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #060214 100%);
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent: #7c4dff;
+            --accent-hover: #9e7bff;
+            --text-main: #f1edff;
+            --text-muted: #8a84a3;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            max-width: 600px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #a17fe6, #df87ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            max-width: 1100px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 350px;
+            position: relative;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .panel-title {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .view-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        img, canvas {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            backdrop-filter: blur(12px);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.85rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            text-align: center;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .placeholder-text:hover {
+            border-color: var(--accent);
+            background: rgba(124, 77, 255, 0.02);
+        }
+
+        .loader {
+            display: none;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Voronoi Art Transformer</h1>
+        <p>Convert your rigid pixel grids into geometric, mathematical cell structures.</p>
+    </header>
+
+    <main>
+        <div class="workspace">
+            <div class="panel">
+                <span class="panel-title">Source Pixel Art</span>
+                <div class="view-container" id="sourceContainer">
+                    <div class="placeholder-text" onclick="document.getElementById('fileInput').click()">
+                        <span>Click or Drag to Upload Pixel Art</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <span class="panel-title">Voronoi Output</span>
+                <div class="view-container" id="outputContainer">
+                    <div class="loader" id="loader"></div>
+                    <span style="color: var(--text-muted);" id="outputPlaceholder">Awaiting transformation...</span>
+                    <canvas id="voronoiCanvas" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <input type="file" id="fileInput" accept="image/*">
+            
+            <div class="control-group">
+                <div class="control-row">
+                    <label for="densitySlider">Mathematical Seed Density</label>
+                    <span id="densityVal">15%</span>
+                </div>
+                <input type="range" id="densitySlider" min="5" max="40" value="15">
+            </div>
+
+            <div class="btn-container">
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Upload PNG</button>
+                <button class="btn btn-primary" id="transformBtn" disabled>Transform Map</button>
+                <button class="btn btn-secondary" id="downloadBtn" disabled>Download .PNG</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+const sourceContainer = document.getElementById('sourceContainer');
+const outputContainer = document.getElementById('outputContainer');
+const outputPlaceholder = document.getElementById('outputPlaceholder');
+const loader = document.getElementById('loader');
+const voronoiCanvas = document.getElementById('voronoiCanvas');
+const transformBtn = document.getElementById('transformBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const densitySlider = document.getElementById('densitySlider');
+const densityVal = document.getElementById('densityVal');
+
+let originalImage = null;
+const ctx = voronoiCanvas.getContext('2d');
+
+// UI slider
+densitySlider.addEventListener('input', (e) => {
+    densityVal.textContent = e.target.value + '%';
+});
+
+// Upload
+fileInput.addEventListener('change', handleImageUpload);
+
+function handleImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        originalImage = new Image();
+        originalImage.onload = function() {
+            sourceContainer.innerHTML = '';
+            const imgEl = document.createElement('img');
+            imgEl.src = originalImage.src;
+            sourceContainer.appendChild(imgEl);
+
+            transformBtn.disabled = false;
+            downloadBtn.disabled = true;
+
+            voronoiCanvas.style.display = 'none';
+            outputPlaceholder.style.display = 'block';
+        };
+        originalImage.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// MAIN BUTTON
+transformBtn.addEventListener('click', () => {
+    if (!originalImage) return;
+
+    loader.style.display = 'block';
+    outputPlaceholder.style.display = 'none';
+    voronoiCanvas.style.display = 'none';
+    downloadBtn.disabled = true;
+
+    requestAnimationFrame(() => {
+        setTimeout(generateVoronoi, 50);
+    });
+});
+
+function generateVoronoi() {
+    // ✅ LIMIT SIZE (CRITICAL FIX)
+    const MAX_SIZE = 350;
+
+    let width = originalImage.naturalWidth;
+    let height = originalImage.naturalHeight;
+
+    const scale = Math.min(1, MAX_SIZE / Math.max(width, height));
+    width = Math.floor(width * scale);
+    height = Math.floor(height * scale);
+
+    voronoiCanvas.width = width;
+    voronoiCanvas.height = height;
+
+    // Use OFFSCREEN canvas so we don't corrupt output canvas
+    const tempCanvas = document.createElement('canvas');
+    const tctx = tempCanvas.getContext('2d');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+
+    tctx.drawImage(originalImage, 0, 0, width, height);
+    const imgData = tctx.getImageData(0, 0, width, height).data;
+
+    // ✅ seed generation (reduced + faster)
+    const seeds = [];
+    const samplingRate = parseInt(densitySlider.value) / 100;
+
+    const step = 2; // skip pixels for speed
+
+    for (let y = 0; y < height; y += step) {
+        for (let x = 0; x < width; x += step) {
+            const idx = (y * width + x) * 4;
+
+            const a = imgData[idx + 3];
+            if (a < 50) continue;
+
+            if (Math.random() < samplingRate) {
+                seeds.push({
+                    x,
+                    y,
+                    r: imgData[idx],
+                    g: imgData[idx + 1],
+                    b: imgData[idx + 2],
+                    a
+                });
+            }
+        }
+    }
+
+    if (seeds.length === 0) {
+        loader.style.display = 'none';
+        outputPlaceholder.style.display = 'block';
+        outputPlaceholder.textContent = "No valid pixels found.";
+        return;
+    }
+
+    const output = ctx.createImageData(width, height);
+
+    // ✅ core Voronoi (still O(n²) but now MUCH smaller)
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+
+            const idx = (y * width + x) * 4;
+
+            const a = imgData[idx + 3];
+            if (a < 50) {
+                output.data[idx + 3] = 0;
+                continue;
+            }
+
+            let best = 0;
+            let bestDist = Infinity;
+
+            for (let i = 0; i < seeds.length; i++) {
+                const s = seeds[i];
+                const dx = x - s.x;
+                const dy = y - s.y;
+                const d = dx * dx + dy * dy;
+
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = i;
+                }
+            }
+
+            const s = seeds[best];
+
+            output.data[idx] = s.r;
+            output.data[idx + 1] = s.g;
+            output.data[idx + 2] = s.b;
+            output.data[idx + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(output, 0, 0);
+
+    loader.style.display = 'none';
+    voronoiCanvas.style.display = 'block';
+    downloadBtn.disabled = false;
+}
+
+// Download
+downloadBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'voronoi_pixel_map.png';
+    link.href = voronoiCanvas.toDataURL('image/png');
+    link.click();
+});
+    </script>
+</body>
+</html>
